@@ -1,0 +1,148 @@
+\title{dualassign package}
+\author{
+        Stefan Rampertshammer
+}
+\date{\today}
+
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+
+\begin{document}
+\maketitle
+
+\section{Summary}
+This package uses a fast and approximately optimal method to assign resources to tasks.
+\subsection{Included functions}
+\begin{itemize}
+\item dual\_assignment
+\item iterate\_dual\_process
+\end{itemize}
+\subsection{Package requirements}
+\begin{itemize}
+\item dplyr
+\item lpSolve
+\end{itemize}
+
+\section{Use and examples}
+\subsection{dual\_assignment}
+Input and output is an object (ss) containing:
+\begin{itemize}
+\item $ss\$tasks$ - vector of length $K$ showing the list of work to be done
+\item $ss\$assigns$ - vector of length $J$ showing the list of potential assignments for each resource
+\item $ss\$users$ - vector of length $I$ showing the resources to be assigned
+\item $ss\$perform$ - $I \times K$ matrix showing the performance by each resource on each task
+\item $ss\$P$ - $J \times K$ matrix showing the proportion of assignment $j$ spent on task $k$
+\item $ss\$demand$ - vector of length $K$ showing the required work to be done in each task
+\item $ss\$otcost$ - scalar showing the relative cost of overtime(backlog) cost to normal-time
+\item $ss\$otperform$ - vector of length $K$ showing the rate at which overtime(backlog) gets done for each task
+\item $ss\$solution$ - vector of length $I$ showing which assignment each user is given (Initially NULL)
+\item $ss\$backlog$ - vector of length $K$ showing the amount of extra resources needed to complete each task (Initially NULL)
+\item $ss\$istar$ - together with $ss\$jstar$ shows the assignment order (Initially NULL). $(ss\$istar[n],ss\$jstar[n])$ shows that on the $n^{th}$ iteration of the algorithm, $ss\$istar[n]$ is assigned to $ss\$jstar[n]$. Backlog resources are denoted by $ss\$istar=0$
+\item $ss\$jstar$ - Initially NULL
+\end{itemize}
+
+\subsection{iterate\_dual\_process}
+Input and output is an object (lpo) containing:
+\begin{itemize}
+\item $lpo\$n$ - vector showing $I,J,K$ from dual\_assignment function
+\item $lpo\$obj$ - objective function for dual linear program
+\item $lpo\$rhs$ - rhs of inequality constraint for dual linear program
+\item $lpo\$mat$ - matrix for inequality constraint in dual linear program
+\item $lpo\$dir$ - direction of inequality constraint
+\item $lpo\$ass$ - current assignments
+\item $lpo\$bl$ - curerent backlogs/overtime
+\item $lpo\$istar$ - most recent assignment
+\item $lpo\$jstar$ - most recent assignment
+\item $lpo\$cost$ - scalar showing total running cost of assignment, initialized to $0$
+\item $lpo\$exit$ - scalar showing exit conditions
+\item $lpo\$count$ - scalar showing number of assignments made so far, intialized to $0$
+\end{itemize}
+
+\subsection{Examples}
+\subsection{Example 1}
+
+In this example we take a simple situation in which five identical resources must be assigned to three tasks. Each assignment is perfectly matched with the task, reflected by $ss\$P$ being the identity matrix. The ability to perform each task is given by $c(3,3,1)$ while backlogged work costs 150\% of the regular work and is done at a lower rate $c(2,2,0.4)$. The amount of work required to be completed is $c(10,15,3)$.
+
+\begin{verbatim}library(dualassign)
+ss=list(
+  tasks=c(1,2,3),
+  assigns=c(1,2,3),
+  users=c(1,2,3,4,5),
+  perform=matrix(c(rep(c(3,3,1),each=5)),nrow=5),
+  P=diag(c(1,1,1)),
+  demand=c(10,15,3),
+  otcost=1.5,
+  otperform=c(2,2,0.4),
+  solution=NULL,
+  backlog=NULL,
+  istar=NULL,
+  jstar=NULL,
+  status=c("incomplete")
+)
+ss2=dual_assignment(ss)
+
+ss2$solution
+[1] 3 1 2 1 3
+ss2$backlog
+[1] 2 6 3
+ss2$istar
+ [1] 1 2 3 4 5 0 0 0 0 0 0 0 0 0 0 0
+ss2$jstar
+ [1] 3 1 2 1 3 2 1 1 2 3 3 3 2 2 2 2
+\end{verbatim}
+
+The solution vector shows how the resources are assigned: the first resource is assigned to task 3, the second to task 1 and so on.
+
+The backlog vector shows how many additional backlog resources are required for each task. Here we see that a total of 11 extra resources are required, 6 of which are for task 2.
+
+$ss\$istar$ and $ss\$jstar$ together show the order in which resources are assigned, with resource $ss\$istar$ assigned to task $ss\$jstar$. First, resource 1 is assigned to task 3, then resource 2 is assigned to task 1. Once all the resources have been assigned, $ss\$istar$ takes on the value of $0$ showing that a backlog resource is assigned here.
+
+\section{Theory}
+The problem statement:
+\begin{itemize}
+\item $i \in I$ collection of resources to distribute to assignments $j \in J$
+\item $k \in K$ collection of tasks done by each assignment $j$ in proportion $p_{jk}$
+\item $i$ performs $k$ at rate $r_{ik}$ and can only be assigned to a single $j$ at cost $w_{ij}$
+\item $D_k$ is the required amount of task $k$ to be completed.
+\item Any tasks not completed by $I$ can be sent to a backlog who completes tasks at rate $R_k$ but increased cost $W_k$. The backlog can take any amount of work.
+\end{itemize}
+
+If we set $x_{ij}$ to be the assignment decision variable from resource $i$ to task $j$, relax the integral constraint on $x_{ij}$ from $x_{ij} \in \{0,1\} \to x_{ij}\in [0,1]$ then we can minimize the amount of resources used to meet demand by considering the linear program:
+
+\begin{align*}
+\min_{x} \sum_{i \in I} \sum_{j \in J} w_{ij}  x_{ij}+\sum_{k \in K}W_ky_k && \text{ s.t. }\\
+x_{ij} &\ge 0& (i,j) \in I \times J\\
+y_k & \ge 0 & k \in K\\
+-\sum_{j \in J} x_{ij} &\ge -1 &i \in I \\
+\sum_{i \in I}\sum_{j \in J} p_{jk}r_{ik} x_{ij}+R_k y_k &\ge D_k & k \in K
+\end{align*}
+
+which has dual
+\begin{align*}
+\max_{\theta,\eta} \sum_{k\in K} D_k \eta_k -\sum_{i \in I} \theta_i  & &\text{ s.t. }\\
+\theta_i &\ge 0& i \in I\\
+\eta_k &\ge 0& k \in K\\
+\sum_{k \in K}p_{jk}r_{ik}\eta_k -\theta_i&\le w_{ij} & (i,j) \in I \times J\\
+R_k \eta_k & \le W_k & k \in K
+\end{align*}
+
+The dual variables $\theta_i$ and $\eta_k$ have the meaningful interpretations of $\theta_i$ being the value of duplicating resource $i$ and $\eta_k$ is proportional to the additional resources that an additional task $k$ would cost.\\
+
+The selection algorithm is as follows: Loop until all remaining demand is non-positive
+\begin{enumerate}
+\item run the dual LP with updated $\{D_k\}$, determine dual variables $\theta_i,\eta_k$
+\item find the maximal element of $\left\{\sum_{k \in K}p_{jk}r_{ik}\eta_k/w_{ij},R_k\eta_k/W_k\right\}$,
+\begin{itemize}
+\item if it is some $\sum_{k \in K}p_{jk}r_{ik}\eta_k/w_{ij}$ then assign $i$ to $j$
+\item if it is some $R_k\eta_k/W_k$ then assign a backlog resource to $k$
+\end{itemize}
+\item in the case a resource from $I$ is assigned, remove that resource from the available pool.
+\item calculate the work done by the assigned resource and deduct it from $(D_1,...,D_K)$
+\item update demand and list of remaining resources and go to 1.
+\end{enumerate}
+
+
+
+\end{document}
