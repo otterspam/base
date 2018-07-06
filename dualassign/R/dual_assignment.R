@@ -11,7 +11,7 @@
 #'   assigns=c("A","B","c"),
 #'   users=c(1:20),
 #'   perform=matrix(rgamma(60,5,1),ncol=3),
-#'   costs=maxtrix(c(rep(1,60)),ncol=3)
+#'   costs=matrix(c(rep(1,60)),ncol=3),
 #'   P=matrix(c(1,0.6,0,0,0.4,0.5,0,0,0.5),ncol=3),
 #'   demand=c(300,200,150),
 #'   otcost=3,
@@ -30,7 +30,7 @@
 dual_assignment=function(ss){
   # set up linear programming parts
   n=c(length(ss$tasks),length(ss$assigns),length(ss$users))
-  if (ss$costs=NULL){ss$costs=matrix(c(rep(1,n[3]*n[2])),ncol=n[2])}
+  if (is.null(ss$costs)){ss$costs=matrix(c(rep(1,n[3]*n[2])),ncol=n[2])}
   dual.rhs=c(as.vector(ss$costs),rep(ss$otcost,n[1]))
   dual.obj=c(rep(-1,n[3]),ss$demand)
   dual.dir=c(rep("<=",n[3]*n[2]+n[1]))
