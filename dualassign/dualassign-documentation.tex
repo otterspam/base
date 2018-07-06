@@ -33,6 +33,7 @@ Input and output is an object (ss) containing:
 \item $ss\$assigns$ - vector of length $J$ showing the list of potential assignments for each resource
 \item $ss\$users$ - vector of length $I$ showing the resources to be assigned
 \item $ss\$perform$ - $I \times K$ matrix showing the performance by each resource on each task
+\item $ss\$costs$ - $I \times J$ matrix showing the cost of setting each resource $i$ to assignment $j$
 \item $ss\$P$ - $J \times K$ matrix showing the proportion of assignment $j$ spent on task $k$
 \item $ss\$demand$ - vector of length $K$ showing the required work to be done in each task
 \item $ss\$otcost$ - scalar showing the relative cost of overtime(backlog) cost to normal-time
